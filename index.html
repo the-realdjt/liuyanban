@@ -1,63 +1,151 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>公开留言板</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>留言板</title>
     <style>
-        body { max-width: 600px; margin: 30px auto; font-family: Arial; }
-        input, textarea { width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box; }
-        button { padding: 10px 20px; background: #42b983; color: white; border: none; border-radius:4px; cursor:pointer; }
-        .msg { border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius:4px; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            max-width: 620px;
+            margin: 40px auto;
+            padding: 0 20px;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 24px;
+            color: #222;
+        }
+        .form-box {
+            margin-bottom: 30px;
+        }
+        input#nick {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+        textarea#content {
+            width: 100%;
+            height: 110px;
+            padding: 10px 12px;
+            font-size: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            resize: none;
+            margin-bottom: 12px;
+        }
+        button {
+            padding: 10px 26px;
+            background-color: #0088fe;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+        button:hover {
+            background-color: #0077e2;
+        }
+        .msg-item {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+        .msg-name {
+            font-weight: bold;
+            font-size: 15px;
+            color: #222;
+            margin-bottom: 6px;
+        }
+        .msg-text {
+            font-size: 14px;
+            color: #444;
+            line-height: 1.6;
+        }
     </style>
 </head>
 <body>
-    <h2>公开共享留言板</h2>
+    <h2>简易留言板</h2>
 
-    <input id="name" placeholder="你的昵称">
-    <textarea id="content" placeholder="写下留言..."></textarea>
-    <button onclick="sendMsg()">发布留言</button>
+    <div class="form-box">
+        <input id="nick" placeholder="请输入昵称">
+        <textarea id="content" placeholder="请输入留言内容"></textarea>
+        <button onclick="submitMsg()">提交留言</button>
+    </div>
 
-    <h3>全部留言</h3>
+    <h3 style="margin-bottom:12px;">全部留言</h3>
     <div id="msgList"></div>
 
-    <script>
-        window.onload = getMessages;
-        // 此处替换为你自己的后端域名
-        const API_DOMAIN = "https://realdjt.pythonanywhere.com";
+<script>
+// ============ 只改这里！填入你的阿里云公网地址 ============
+const API_BASE = "https://liuyan-umcennoinv.cn-hangzhou.fcapp.run";
 
-        function getMessages() {
-            fetch(`${API_DOMAIN}/get_messages`)
-                .then(res => res.json())
-                .then(data => {
-                    let html = '';
-                    data.forEach(item => {
-                        html += `<div class="msg"><strong>${item.name}</strong>：${item.content}</div>`;
-                    });
-                    document.getElementById('msgList').innerHTML = html;
-                })
-                .catch(err=>alert("接口加载失败，后端正在唤醒，刷新页面重试！"));
-        }
+// 页面加载自动加载留言
+window.onload = loadMessages;
 
-        function sendMsg() {
-            let name = document.getElementById('name').value.trim();
-            let content = document.getElementById('content').value.trim();
-            if(!name||!content){
-                alert("昵称和留言不能为空");
-                return;
-            }
-            fetch(`${API_DOMAIN}/add_message`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, content })
-            }).then(res=>res.json()).then(ret=>{
-                if(ret.status==="success"){
-                    document.getElementById('content').value = '';
-                    getMessages();
-                }else{
-                    alert(ret.msg);
-                }
-            });
+// 获取所有留言
+async function loadMessages() {
+    try {
+        const res = await fetch(`${API_BASE}/get_messages`);
+        const list = await res.json();
+        const wrap = document.getElementById("msgList");
+        wrap.innerHTML = "";
+        list.forEach(item => {
+            wrap.innerHTML += `
+                <div class="msg-item">
+                    <div class="msg-name">${item.name}</div>
+                    <div class="msg-text">${item.content}</div>
+                </div>
+            `;
+        });
+    } catch (err) {
+        alert("加载留言失败，请检查接口地址");
+        console.error(err);
+    }
+}
+
+// 提交新留言
+async function submitMsg() {
+    const name = document.getElementById("nick").value.trim();
+    const content = document.getElementById("content").value.trim();
+    if (!name || !content) {
+        alert("昵称和留言内容不能为空！");
+        return;
+    }
+    try {
+        const res = await fetch(`${API_BASE}/add_message`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                name: name,
+                content: content
+            })
+        });
+        const ret = await res.json();
+        if (ret.status === "success") {
+            // 清空输入框，刷新留言列表
+            document.getElementById("nick").value = "";
+            document.getElementById("content").value = "";
+            loadMessages();
+        } else {
+            alert(ret.msg);
         }
-    </script>
+    } catch (err) {
+        alert("提交留言失败");
+        console.error(err);
+    }
+}
+</script>
 </body>
 </html>
